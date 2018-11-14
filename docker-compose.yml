@@ -1,0 +1,30 @@
+version: '3'
+services:
+  master1:
+    image: "poc-i2-6766"
+    environment:
+      - "NodeName=master1"
+    ports:
+      - "56651:5665"
+      - "8001:80"
+  master2:
+    image: "poc-i2-6766"
+    environment:
+      - "NodeName=master2"
+    ports:
+      - "56652:5665"
+      - "8002:80"
+  sat1:
+    image: "poc-i2-6766"
+    environment:
+      - "NodeName=sat1"
+    ports:
+      - "56653:5665"
+      - "8003:80"
+  sat2:
+    image: "poc-i2-6766"
+    environment:
+      - "NodeName=sat2"
+    ports:
+      - "56654:5665"
+      - "8004:80"
