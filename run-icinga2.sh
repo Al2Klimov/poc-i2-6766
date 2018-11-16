@@ -2,10 +2,10 @@
 
 set -exo pipefail
 
-perl -pi -e 'if (m~^//const NodeName\b~) { s~//~~; s/\blocalhost\b/$ENV{"NodeName"}/e }' /etc/icinga2/constants.conf
+perl -pi -e 'if (m~^//const NodeName\b~) { s~//~~; s/\blocalhost\b/$ENV{"NodeName"}/e }' /opt/icinga2/etc/icinga2/constants.conf
 
 if [ "$NodeName" = master2 ]; then
-	cat <<EOF >/etc/icinga2/zones.conf
+	cat <<EOF >/opt/icinga2/etc/icinga2/zones.conf
 object Endpoint "master1" {
 	host = "172.17.0.1"
 	port = "56651"
@@ -34,7 +34,7 @@ object Zone "sat" {
 }
 EOF
 else
-	cat <<EOF >/etc/icinga2/zones.conf
+	cat <<EOF >/opt/icinga2/etc/icinga2/zones.conf
 object Endpoint "master1" {
 }
 
@@ -59,9 +59,9 @@ EOF
 fi
 
 if [ "$NodeName" = master1 ]; then
-	mkdir -p /etc/icinga2/zones.d/sat
+	mkdir -p /opt/icinga2/etc/icinga2/zones.d/sat
 
-	cat <<EOF >/etc/icinga2/zones.d/sat/hosts.conf
+	cat <<EOF >/opt/icinga2/etc/icinga2/zones.d/sat/hosts.conf
 object CheckCommand "silence" {
 	command = [ "/bin/true" ]
 }
@@ -72,11 +72,10 @@ object Host "invincible" {
 EOF
 fi
 
-icinga2 daemon -C
-icinga2 api setup
+/opt/icinga2/sbin/icinga2 daemon -C
+/opt/icinga2/sbin/icinga2 api setup
 
-perl -pi -e 'if (/accept/) { s~//~~; s/false/true/ }' /etc/icinga2/features-available/api.conf
+perl -pi -e 'if (/accept/) { s~//~~; s/false/true/ }' /opt/icinga2/etc/icinga2/features-available/api.conf
 
-rm -vf /var/run/icinga2/icinga2.pid
-. /etc/default/icinga2
-exec icinga2 daemon
+rm -vf /opt/icinga2/var/run/icinga2/icinga2.pid
+exec /opt/icinga2/sbin/icinga2 daemon

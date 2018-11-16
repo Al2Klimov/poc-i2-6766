@@ -1,3 +1,24 @@
+FROM debian:9 as build
+SHELL ["/bin/bash", "-exo", "pipefail", "-c"]
+
+RUN apt-get update ;\
+	DEBIAN_FRONTEND=noninteractive apt-get install --no-install-{recommends,suggests} -y \
+		cmake make build-essential pkg-config libssl-dev libboost-all-dev bison flex libsystemd-dev libmariadbclient-dev libpq-dev libyajl-dev libedit-dev ;\
+	apt-get clean ;\
+	rm -vrf /var/lib/apt/lists/*
+
+ADD vendor /vendor
+
+RUN cd /vendor/icinga2 ;\
+	mkdir build ;\
+	cd build ;\
+	cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=/opt/icinga2 -DICINGA2_PLUGINDIR=/usr/lib/nagios/plugins \
+		-DICINGA2_USER=nagios -DICINGA2_GROUP=nagios -DICINGA2_COMMAND_GROUP=nagios .. ;\
+	make -j2 ;\
+	make test ;\
+	make install ;\
+	rm -rf /opt/icinga2/etc/icinga2/conf.d/*
+
 FROM debian:9
 SHELL ["/bin/bash", "-exo", "pipefail", "-c"]
 
@@ -23,23 +44,28 @@ RUN apt-get update ;\
 	/usr/lib/icinga2/prepare-dirs /etc/default/icinga2 ;\
 	perl -pi -e 'if (!%locales) { %locales = (); for my $d ("", "/modules/monitoring") { for my $f (glob "/usr/share/icingaweb2${d}/application/locale/*_*") { if ($f =~ m~/(\w+)$~) { $locales{$1} = undef } } } } s/^# ?// if (/ UTF-8$/ && /^# (\w+)/ && exists $locales{$1})' /etc/locale.gen
 
-COPY icinga2-ido.conf /etc/icinga2/features-available/ido-mysql.conf
+COPY --from=build --chown=nagios:nagios /opt/icinga2 /opt/icinga2
 
-RUN icinga2 feature enable command ;\
-	icinga2 feature enable ido-mysql
+RUN /opt/icinga2/sbin/icinga2 feature disable notification ;\
+	/opt/icinga2/sbin/icinga2 feature enable command ;\
+	/opt/icinga2/sbin/icinga2 feature enable ido-mysql ;\
+	chgrp icingaweb2 /opt/icinga2/var/run/icinga2/cmd ;\
+	chmod g+s /opt/icinga2/var/run/icinga2/cmd
+
+COPY icinga2-ido.conf /opt/icinga2/etc/icinga2/features-available/ido-mysql.conf
 
 COPY --from=ochinchina/supervisord:latest /usr/local/bin/supervisord /usr/local/bin/
 
-RUN icinga2 pki new-ca ;\
-	install -m 0750 -o nagios -g nagios -d /var/lib/icinga2/certs ;\
-	ln -vs /var/lib/icinga2/{ca,certs}/ca.crt ;\
+RUN /opt/icinga2/sbin/icinga2 pki new-ca ;\
+	install -m 0750 -o nagios -g nagios -d /opt/icinga2/var/lib/icinga2/certs ;\
+	ln -vs /opt/icinga2/var/lib/icinga2/{ca,certs}/ca.crt ;\
 	for n in {master,sat}{1,2}; do \
-		icinga2 pki new-cert --cn $n --key /var/lib/icinga2/certs/$n.key --csr /var/lib/icinga2/certs/$n.csr ;\
-		icinga2 pki sign-csr --csr /var/lib/icinga2/certs/$n.csr --cert /var/lib/icinga2/certs/$n.crt ;\
+		/opt/icinga2/sbin/icinga2 pki new-cert --cn $n --key /opt/icinga2/var/lib/icinga2/certs/$n.key --csr /opt/icinga2/var/lib/icinga2/certs/$n.csr ;\
+		/opt/icinga2/sbin/icinga2 pki sign-csr --csr /opt/icinga2/var/lib/icinga2/certs/$n.csr --cert /opt/icinga2/var/lib/icinga2/certs/$n.crt ;\
 	done
 
-RUN mkfifo /var/log/icinga2/icinga2.log ;\
-	chown nagios:nagios /var/log/icinga2/icinga2.log
+RUN mkfifo /opt/icinga2/var/log/icinga2/icinga2.log ;\
+	chown nagios:nagios /opt/icinga2/var/log/icinga2/icinga2.log
 
 RUN install -m 755 -o mysql -g root -d /var/run/mysqld ;\
 	mysqld -u mysql & \
