@@ -1,0 +1,105 @@
+/******************************************************************************
+ * Icinga 2                                                                   *
+ * Copyright (C) 2012-2018 Icinga Development Team (https://icinga.com/)      *
+ *                                                                            *
+ * This program is free software; you can redistribute it and/or              *
+ * modify it under the terms of the GNU General Public License                *
+ * as published by the Free Software Foundation; either version 2             *
+ * of the License, or (at your option) any later version.                     *
+ *                                                                            *
+ * This program is distributed in the hope that it will be useful,            *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *
+ * GNU General Public License for more details.                               *
+ *                                                                            *
+ * You should have received a copy of the GNU General Public License          *
+ * along with this program; if not, write to the Free Software Foundation     *
+ * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.             *
+ ******************************************************************************/
+
+#ifndef DICTIONARY_H
+#define DICTIONARY_H
+
+#include "base/i2-base.hpp"
+#include "base/object.hpp"
+#include "base/value.hpp"
+#include <boost/range/iterator.hpp>
+#include <map>
+#include <vector>
+
+namespace icinga
+{
+
+typedef std::vector<std::pair<String, Value> > DictionaryData;
+
+/**
+ * A container that holds key-value pairs.
+ *
+ * @ingroup base
+ */
+class Dictionary final : public Object
+{
+public:
+	DECLARE_OBJECT(Dictionary);
+
+	/**
+	 * An iterator that can be used to iterate over dictionary elements.
+	 */
+	typedef std::map<String, Value>::iterator Iterator;
+
+	typedef std::map<String, Value>::size_type SizeType;
+
+	typedef std::map<String, Value>::value_type Pair;
+
+	Dictionary() = default;
+	Dictionary(const DictionaryData& other);
+	Dictionary(DictionaryData&& other);
+	Dictionary(std::initializer_list<Pair> init);
+
+	Value Get(const String& key) const;
+	bool Get(const String& key, Value *result) const;
+	void Set(const String& key, Value value, bool overrideFrozen = false);
+	bool Contains(const String& key) const;
+
+	Iterator Begin();
+	Iterator End();
+
+	size_t GetLength() const;
+
+	void Remove(const String& key, bool overrideFrozen = false);
+
+	void Remove(Iterator it, bool overrideFrozen = false);
+
+	void Clear(bool overrideFrozen = false);
+
+	void CopyTo(const Dictionary::Ptr& dest) const;
+	Dictionary::Ptr ShallowClone() const;
+
+	std::vector<String> GetKeys() const;
+
+	static Object::Ptr GetPrototype();
+
+	Object::Ptr Clone() const override;
+
+	String ToString() const override;
+
+	void Freeze();
+
+	Value GetFieldByName(const String& field, bool sandboxed, const DebugInfo& debugInfo) const override;
+	void SetFieldByName(const String& field, const Value& value, bool overrideFrozen, const DebugInfo& debugInfo) override;
+	bool HasOwnField(const String& field) const override;
+	bool GetOwnField(const String& field, Value *result) const override;
+
+private:
+	std::map<String, Value> m_Data; /**< The data for the dictionary. */
+	bool m_Frozen{false};
+};
+
+Dictionary::Iterator begin(const Dictionary::Ptr& x);
+Dictionary::Iterator end(const Dictionary::Ptr& x);
+
+}
+
+extern template class std::map<icinga::String, icinga::Value>;
+
+#endif /* DICTIONARY_H */

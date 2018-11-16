@@ -1,0 +1,20 @@
+## Editors
+.idea/
+*.komodoproject
+.*.sw[op]
+*~
+
+## C++ and Tools
+*.patch
+*.playground
+.vagrant
+tickets.pickle
+
+## Build artifacts
+build*/
+debug/
+release/
+cmake-build-debug
+/Testing/
+/install/
+/vendor/
